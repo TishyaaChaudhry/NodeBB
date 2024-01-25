@@ -19,8 +19,6 @@ function get() {
             return real;
         }
         noCluster = new events_1.EventEmitter();
-        // The next line calls a function in a module that has not been updated to TS yet
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         noCluster.publish = noCluster.emit.bind(noCluster);
         pubsub = noCluster;
     }
@@ -31,7 +29,7 @@ function get() {
         }
         singleHost = new events_1.EventEmitter();
         if (!process.send) {
-            singleHost.publish = singleHost.emit.bind(singleHost);
+            noCluster.publish = noCluster.emit.bind(noCluster);
         }
         else {
             singleHost.publish = function (event, data) {

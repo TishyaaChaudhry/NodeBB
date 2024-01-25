@@ -4,15 +4,20 @@ import nconf from 'nconf';
 interface CustomEventEmitter extends EventEmitter {
     publish(event: string, data: object): void;
 }
-
+type PublishFunction = (arg: string) => void;
 let real: CustomEventEmitter | null;
 let noCluster: CustomEventEmitter | undefined;
 let singleHost: CustomEventEmitter | undefined;
+
+type messageData = {
+    action: string;
+};
 
 function get(): CustomEventEmitter {
     if (real) {
         return real;
     }
+
 
     let pubsub: CustomEventEmitter;
 
@@ -22,9 +27,7 @@ function get(): CustomEventEmitter {
             return real;
         }
         noCluster = new EventEmitter() as CustomEventEmitter;
-        // The next line calls a function in a module that has not been updated to TS yet
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        noCluster.publish = noCluster.emit.bind(noCluster);
+        noCluster.publish = (noCluster.emit.bind(noCluster) as unknown) as PublishFunction;
         pubsub = noCluster;
     } else if (nconf.get('singleHostCluster')) {
         if (singleHost) {
@@ -33,7 +36,7 @@ function get(): CustomEventEmitter {
         }
         singleHost = new EventEmitter() as CustomEventEmitter;
         if (!process.send) {
-            singleHost.publish = singleHost.emit.bind(singleHost);
+            noCluster.publish = (noCluster.emit.bind(noCluster) as unknown) as PublishFunction;
         } else {
             singleHost.publish = function (event: string, data: object) {
                 process.send({
@@ -42,9 +45,9 @@ function get(): CustomEventEmitter {
                     data,
                 });
             };
-            process.on('message', (message: object) => {
-                if (message && typeof message === 'object' && (message as any).action === 'pubsub') {
-                    const pubsubMessage = message as { action: string, event: string, data: any };
+            process.on('message', (message: messageData) => {
+                if (message && typeof message === 'object' && message.action === 'pubsub') {
+                    const pubsubMessage = message as { action: string, event: string, data: string };
                     singleHost.emit(pubsubMessage.event, pubsubMessage.data);
                 }
             });
