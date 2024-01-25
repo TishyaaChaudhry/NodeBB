@@ -1,25 +1,27 @@
-import { EventEmitter } from 'node:events';
-import * as nconf from 'nconf';
+import { EventEmitter } from 'events';
+import nconf from 'nconf';
 
-let real;
-let noCluster;
-let singleHost;
+interface CustomEventEmitter extends EventEmitter {
+    publish(event: string, data: object): void;
+}
 
-function get(): any {
+let real: CustomEventEmitter | null;
+let noCluster: CustomEventEmitter | undefined;
+let singleHost: CustomEventEmitter | undefined;
+
+function get(): CustomEventEmitter {
     if (real) {
         return real;
     }
 
-    let pubsub;
+    let pubsub: CustomEventEmitter;
 
     if (!nconf.get('isCluster')) {
-        // The next line calls a function in a module that has not been updated to TS yet
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         if (noCluster) {
             real = noCluster;
             return real;
         }
-        noCluster= new EventEmitter();
+        noCluster = new EventEmitter() as CustomEventEmitter;
         noCluster.publish = noCluster.emit.bind(noCluster);
         pubsub = noCluster;
     } else if (nconf.get('singleHostCluster')) {
@@ -27,28 +29,29 @@ function get(): any {
             real = singleHost;
             return real;
         }
-        singleHost = new EventEmitter();
+        singleHost = new EventEmitter() as CustomEventEmitter;
         if (!process.send) {
             singleHost.publish = singleHost.emit.bind(singleHost);
         } else {
-            singleHost.publish = function (event: string, data: any) {
+            singleHost.publish = function (event: string, data: object) {
                 process.send({
                     action: 'pubsub',
-                    event: event,
-                    data: data,
+                    event,
+                    data,
                 });
             };
-            process.on('message', (message:any) => {
-                // The next line calls a function in a module that has not been updated to TS yet
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-                if (message && typeof message === 'object' && message.action === 'pubsub') {
-                    singleHost!.emit(message.event, message.data);
+            process.on('message', (message: object) => {
+                if (message && typeof message === 'object' && (message as any).action === 'pubsub') {
+                    const pubsubMessage = message as { action: string, event: string, data: any };
+                    singleHost!.emit(pubsubMessage.event, pubsubMessage.data);
                 }
             });
+            
         }
         pubsub = singleHost;
     } else if (nconf.get('redis')) {
-        pubsub = require('./database/redis/pubsub');
+        // Assuming this is a valid import path for your Redis module
+        pubsub = require('./database/redis/pubsub') as CustomEventEmitter;
     } else {
         throw new Error('[[error:redis-required-for-pubsub]]');
     }
@@ -58,10 +61,10 @@ function get(): any {
 }
 
 export default {
-    publish: function (event: string, data: any) {
+    publish: function (event: string, data:  object) {
         get().publish(event, data);
     },
-    on: function (event: string, callback: (data: any) => void) {
+    on: function (event: string, callback: (...args: any[]) => void) {
         get().on(event, callback);
     },
     removeAllListeners: function (event: string) {
