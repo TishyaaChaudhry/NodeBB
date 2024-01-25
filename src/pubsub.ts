@@ -22,6 +22,8 @@ function get(): CustomEventEmitter {
             return real;
         }
         noCluster = new EventEmitter() as CustomEventEmitter;
+        // The next line calls a function in a module that has not been updated to TS yet
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         noCluster.publish = noCluster.emit.bind(noCluster);
         pubsub = noCluster;
     } else if (nconf.get('singleHostCluster')) {
@@ -43,14 +45,14 @@ function get(): CustomEventEmitter {
             process.on('message', (message: object) => {
                 if (message && typeof message === 'object' && (message as any).action === 'pubsub') {
                     const pubsubMessage = message as { action: string, event: string, data: any };
-                    singleHost!.emit(pubsubMessage.event, pubsubMessage.data);
+                    singleHost.emit(pubsubMessage.event, pubsubMessage.data);
                 }
             });
-            
         }
         pubsub = singleHost;
     } else if (nconf.get('redis')) {
         // Assuming this is a valid import path for your Redis module
+        /* eslint-disable */
         pubsub = require('./database/redis/pubsub') as CustomEventEmitter;
     } else {
         throw new Error('[[error:redis-required-for-pubsub]]');
@@ -61,7 +63,7 @@ function get(): CustomEventEmitter {
 }
 
 export default {
-    publish: function (event: string, data:  object) {
+    publish: function (event: string, data: object) {
         get().publish(event, data);
     },
     on: function (event: string, callback: (...args: any[]) => void) {

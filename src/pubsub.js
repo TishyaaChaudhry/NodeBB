@@ -19,6 +19,8 @@ function get() {
             return real;
         }
         noCluster = new events_1.EventEmitter();
+        // The next line calls a function in a module that has not been updated to TS yet
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
         noCluster.publish = noCluster.emit.bind(noCluster);
         pubsub = noCluster;
     }
@@ -50,6 +52,7 @@ function get() {
     }
     else if (nconf_1.default.get('redis')) {
         // Assuming this is a valid import path for your Redis module
+        /* eslint-disable */
         pubsub = require('./database/redis/pubsub');
     }
     else {
