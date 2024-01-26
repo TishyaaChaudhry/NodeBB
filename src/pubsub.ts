@@ -1,5 +1,6 @@
 import { EventEmitter } from 'events';
 import nconf from 'nconf';
+import ps = require('./database/redis/pubsub');
 
 interface CustomEventEmitter extends EventEmitter {
     publish(event: string, data: object): void;
@@ -8,6 +9,8 @@ type PublishFunction = (arg: string) => void;
 let real: CustomEventEmitter | null;
 let noCluster: CustomEventEmitter | undefined;
 let singleHost: CustomEventEmitter | undefined;
+
+
 
 type messageData = {
     action: string;
@@ -55,8 +58,7 @@ function get(): CustomEventEmitter {
         pubsub = singleHost;
     } else if (nconf.get('redis')) {
         // Assuming this is a valid import path for your Redis module
-        /* eslint-disable */
-        pubsub = require('./database/redis/pubsub') as CustomEventEmitter;
+        pubsub = ps as CustomEventEmitter;
     } else {
         throw new Error('[[error:redis-required-for-pubsub]]');
     }
@@ -69,7 +71,7 @@ export default {
     publish: function (event: string, data: object) {
         get().publish(event, data);
     },
-    on: function (event: string, callback: (...args: any[]) => void) {
+    on: function (event: string, callback: (...args: string[]) => void) {
         get().on(event, callback);
     },
     removeAllListeners: function (event: string) {

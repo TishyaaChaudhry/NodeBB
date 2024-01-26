@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = require("events");
 const nconf_1 = __importDefault(require("nconf"));
+const ps = require("./database/redis/pubsub");
 let real;
 let noCluster;
 let singleHost;
@@ -50,8 +51,7 @@ function get() {
     }
     else if (nconf_1.default.get('redis')) {
         // Assuming this is a valid import path for your Redis module
-        /* eslint-disable */
-        pubsub = require('./database/redis/pubsub');
+        pubsub = ps;
     }
     else {
         throw new Error('[[error:redis-required-for-pubsub]]');
